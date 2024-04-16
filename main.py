@@ -1,6 +1,9 @@
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 import pandas as pd
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics.pairwise import cosine_similarity
+import numpy as np
 
 # --------------------- Datasets -------------------------------------------------
 # Consulta 1:
@@ -156,3 +159,43 @@ def developer_reviews_analysis(developer: str):
     diccionario = dffila.to_dict(orient='records')
 
     return developer, diccionario
+
+# _________________________________________________________________________________________________________________________
+# _________________________________________ Modelo Machine Learning _______________________________________________________
+
+@app.get("/recomendacion_juego/{item_id}")
+def recomendacion_juego(item_id: int):
+
+    df_muestra = pd.read_parquet('./datasets_endpoints/muestra_recomendacion.parquet')
+    top = 5
+    df_muestra = df_muestra.reset_index(drop=True)
+
+    # seleccionando características numéricas para utilizarlas en el cálculo de similitud entre elementos
+    numericas_car = df_muestra.select_dtypes(include=[np.number]).columns.tolist()
+    matriz_similitud = cosine_similarity(df_muestra[numericas_car].fillna(0))
+    matriz_similitud = np.nan_to_num(matriz_similitud)
+ 
+    # Verifica si el item_id dado no está presente en la columna 'item_id' del DataFrame
+    if item_id not in df_muestra['item_id'].values:
+        return f"Recomendaciones no encontradas: {item_id} no se encuentra en la base de datos."
+
+    lista_apariciones_ids = df_muestra.index[df_muestra['item_id'] == item_id].tolist()
+
+    # Verifica si la lista de índices de apariciones está vacía. Si está vacía, significa que el item_id no está en la lista de juegos
+    if not lista_apariciones_ids:
+        return f"Recomendaciones no encontradas: {item_id} no esta en la lista."
+    lista_apariciones_ids = lista_apariciones_ids[0]
+
+    # Puntajes de similitud y ordenamiento
+    similitud_scores = list(enumerate(matriz_similitud[lista_apariciones_ids]))
+    similitud_scores = sorted(similitud_scores, key=lambda x: x[1], reverse=True)
+
+    indices_juegos_similares = [i for i, score in similitud_scores[1:top+1]]
+    juegos_similares = df_muestra['app_name'].iloc[indices_juegos_similares].tolist()
+
+
+    juego_nombre = df_muestra['app_name'].iloc[lista_apariciones_ids]
+    recomendacion_ms = f"Recomendación de juegos por item_id {item_id} - {juego_nombre}:"
+    recomendacion_final = [recomendacion_ms] + juegos_similares
+
+    return recomendacion_final
