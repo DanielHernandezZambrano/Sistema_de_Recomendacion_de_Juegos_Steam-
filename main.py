@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 import pandas as pd
 
+# --------------------- Datasets -------------------------------------------------
 # Consulta 1:
 df_developer = pd.read_parquet("./datasets_endpoints/games_developer.parquet")
 
@@ -13,7 +14,11 @@ df_reviews = pd.read_parquet("./datasets_endpoints/user_reviews_sentiment.parque
 df_games_user_genre = pd.read_parquet("./datasets_endpoints/games_user_genre.parquet")
 df_items_user_genre = pd.read_parquet("./datasets_endpoints/items_user_genre.parquet")
 
+# Consulta 4 y 5
+df_concatenado = pd.read_parquet("./datasets_endpoints/df_concatenado.parquet")
 
+
+# -------------------- Metodos -------------------------------------------------------
 def str_to_float(value):      # metodo para sumar solo los valores numericos
     try:                      # de la columna 'price'
         return float(value)
@@ -21,12 +26,14 @@ def str_to_float(value):      # metodo para sumar solo los valores numericos
         return 0
 
 
+# -------------------- Consultas ------------------------------------------------------
 app = FastAPI()
 
 @app.get("/")
 def message():
     return "Mi primera API"
 
+# Consulta 1
 @app.get("/developer/{desarrollador}", response_class=HTMLResponse)
 def developer(desarrollador: str):
     df_dev = df_developer[df_developer["developer"] == desarrollador]
@@ -52,6 +59,7 @@ def developer(desarrollador: str):
     df_html = df_agrupado.to_html(index=False)
     return df_html
 
+# Consulta 2
 @app.get("/userdata/{user_id}")
 def userdata(user_id: str):
     df_user = df_user_data[df_user_data["user_id"] == user_id]    #creo un df de solo el usuario buscado
@@ -74,6 +82,7 @@ def userdata(user_id: str):
     
     return respuesta
 
+# Consulta 3
 @app.get("/user_for_genre/{genero}")
 def user_for_genre(genero: str):
     # Verificar si la columna 'genre' está presente en el DataFrame df_games_copy
@@ -107,3 +116,43 @@ def user_for_genre(genero: str):
     }
 
     return result
+
+# Consulta 4
+@app.get("/best_developer_year/{year}",response_class=HTMLResponse)
+def best_developer_year(year: int):
+    try:
+        # Filtrar por año y recomendaciones positivas
+        df_filtered = df_concatenado[(df_concatenado['year'] == year) & (df_concatenado['recommend'] == True)]
+
+        # Contar la cantidad de recomendaciones por desarrollador
+        df_counts = df_filtered.groupby('developer')['user_id'].count().reset_index()
+        df_counts = df_counts.rename(columns={'user_id': 'cantidad_recomendaciones'})
+
+        # Ordenar por cantidad de recomendaciones y obtener el top 3
+        df_top3 = df_counts.nlargest(3, 'cantidad_recomendaciones')
+        df_html = df_top3.to_html(index=False)
+        return df_html
+    except Exception as e:
+        return {"error": str(e)}
+
+# Consulta 5
+@app.get("/developer_reviews_analysis/{developer}")
+def developer_reviews_analysis(developer: str):
+    
+    df_desarrollador = df_concatenado[df_concatenado['developer'] == developer]
+    
+    # Filtrar registros con sentimiento negativo (valor 0) o positivo (valor 2)
+    df_negativo = df_desarrollador[df_desarrollador['sentiment_analysis'] == 0]['user_id'].count()
+    df_positivo = df_desarrollador[df_desarrollador['sentiment_analysis'] == 2]['user_id'].count()
+
+    df_desarrollador['negative'] = df_negativo
+    df_desarrollador['positive'] = df_positivo
+
+    fila1 = df_desarrollador.iloc[0]
+    lista =['price','item_id', 'developer','year', 'user_id', 'recommend', 'sentiment_analysis']
+    dffila= pd.DataFrame([fila1]) 
+    dffila = dffila.drop(lista, axis=1)
+    
+    diccionario = dffila.to_dict(orient='records')
+
+    return developer, diccionario
