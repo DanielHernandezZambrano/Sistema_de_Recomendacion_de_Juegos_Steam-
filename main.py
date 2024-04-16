@@ -2,9 +2,16 @@ from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 import pandas as pd
 
+# Consulta 1:
 df_developer = pd.read_parquet("./datasets_endpoints/games_developer.parquet")
+
+# Consulta 2
 df_user_data = pd.read_parquet("./datasets_endpoints/user_data.parquet")
 df_reviews = pd.read_parquet("./datasets_endpoints/user_reviews_sentiment.parquet")
+
+# Consulta 3
+df_games_user_genre = pd.read_parquet("./datasets_endpoints/games_user_genre.parquet")
+df_items_user_genre = pd.read_parquet("./datasets_endpoints/items_user_genre.parquet")
 
 
 def str_to_float(value):      # metodo para sumar solo los valores numericos
@@ -66,3 +73,37 @@ def userdata(user_id: str):
                  "cantidad de items": cantidad_items}
     
     return respuesta
+
+@app.get("/user_for_genre/{genero}")
+def user_for_genre(genero: str):
+    # Verificar si la columna 'genre' está presente en el DataFrame df_games_copy
+    if 'genre' not in df_games_user_genre.columns:
+        raise ValueError("El DataFrame df_games_copy no tiene una columna llamada 'genre'.")
+
+#Convertir la columna 'release_date' a tipo datetime
+    df_games_user_genre['release_date'] = pd.to_datetime(df_games_user_genre['release_date'], errors='coerce')
+
+#Filtrar df_games_copy por el género dado
+    juegos_genero = df_games_user_genre[df_games_user_genre['genre'] == genero]
+
+#Unir el DataFrame filtrado con df_user_items
+    juegos_usuario = pd.merge(df_items_user_genre, juegos_genero, on='item_id')
+
+#Calcular las horas jugadas por usuario para cada juego
+    horas_por_usuario = juegos_usuario.groupby('user_id')['playtime_forever'].sum().reset_index()
+
+#Encontrar el usuario con más horas jugadas
+    usuario_max_horas = horas_por_usuario.loc[horas_por_usuario['playtime_forever'].idxmax()]['user_id']
+
+#Calcular la acumulación de horas jugadas por año de lanzamiento para el género dado
+    horas_por_año = juegos_usuario.groupby(juegos_usuario['release_date'].dt.year)['playtime_forever'].sum().reset_index()
+    horas_por_año.rename(columns={'playtime_forever': 'Horas'}, inplace=True)
+    horas_por_año = horas_por_año.to_dict('records')
+
+#Crear el diccionario de resultados
+    result = {
+        "Usuario con más horas jugadas para {}: ".format(genero): usuario_max_horas,
+        "Horas jugadas": horas_por_año
+    }
+
+    return result
