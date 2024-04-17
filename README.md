@@ -13,8 +13,11 @@ Adentrarse en el papel de Científico de Datos en Steam, una de las principales 
 
 Como *Científico de Datos*, el objetivo principal es abordar el complejo desafío de desarrollar un sistema de recomendación de videojuegos centrado en el usuario. Esto implica:
 
-1. Crear un sistema de recomendación de videojuegos basado en datos para Steam, incorporando una API fácil de usar con FastAPI para un acceso fluido a sugerencias personalizadas.
-2. Realizar un Análisis Exploratorio de Datos (EDA) y entrenar un modelo de aprendizaje automático, centrándose en aprovechar algoritmos de similitud de juegos avanzados para obtener recomendaciones personalizadas *(similitud del coseno)*.
+1. Realizar un correcto ETL, extrayendo, transformando y cargando en archivos parquet la información necesaria para los siguientes pasos.  
+
+2. Realizar un Análisis Exploratorio de Datos (EDA) y entrenar un modelo de aprendizaje automático, centrándose en aprovechar algoritmos de similitud de juegos avanzados para obtener recomendaciones personalizadas *(similitud del coseno)*.  
+
+3. Crear un sistema de recomendación de videojuegos basado en datos para Steam, incorporando una API fácil de usar con FastAPI para un acceso fluido a sugerencias personalizadas.
 
 ## **Funcionalidad de la API**
 
